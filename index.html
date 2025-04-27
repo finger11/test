@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>배당순위 및 배당금 계산기</title>
-  <style>
+<style>
     body { font-family: Arial; padding: 20px; }
     table, th, td { border: 1px solid gray; border-collapse: collapse; padding: 5px; }
     th { background-color: #f0f0f0; }
@@ -12,6 +12,21 @@
     .small-yes { color: blue; }
     .small-no { color: red; }
     .loss-negative { color: red; font-weight: bold; }
+    /* 계산하기 버튼 강조 스타일 (파란색 계열) */
+    #calculateBtn {
+      display: inline-block;
+      font-size: 1.2em;
+      padding: 12px 24px;
+      background-color: #007BFF;
+      color: #ffffff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    #calculateBtn:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
