@@ -121,8 +121,8 @@ function calculate(){
     const c1=document.createElement('td'); c1.textContent=t.name;
     const c2=document.createElement('td'); c2.innerHTML=t.small?'<span class="small-yes">대상</span>':'<span class="small-no">비대상</span>';
     const c3=document.createElement('td');
-    const amt=t.small? Math.min(perShare, t.deposit):0;
-    c3.textContent=amt?amt.toLocaleString()+'원':'';
+    const paid=t.small? Math.min(perShare, t.deposit):0;
+    c3.textContent=paid?paid.toLocaleString()+'원':'';
     tr.append(c1,c2,c3); prBody.append(tr);
   });
   // 우선변제 후 잔액 출력
@@ -138,7 +138,9 @@ function calculate(){
   }));
   // 세입자(일반채권) 배당
   tenants.forEach(t=>{
-    creditors.push({ name:t.name, amount:t.deposit, date:t.date });
+    const paid=t.small? Math.min(perShare, t.deposit):0;
+    const claim=Math.max(t.deposit - paid, 0);
+    creditors.push({ name:t.name, amount:claim, date:t.date });
   });
   // 날짜순 정렬
   creditors.sort((a,b)=>new Date(a.date)-new Date(b.date));
