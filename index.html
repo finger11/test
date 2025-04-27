@@ -11,18 +11,12 @@
     button { margin: 5px; }
     .small-yes { color: blue; }
     .small-no { color: red; }
+    .loss-negative { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
 
 <h2>배당순위 및 배당금 계산기</h2>
-  <h4> 본 배당순위 및 배당금액 계산기는 다가구건축물 등에 있어서 근저당, 선순위 세입자 등 복잡한 권리상황에서 경매가 발생하였다고 가정하였을 때, 나의 임차보증금의 안전할 수 있는지를 시뮬레이션하기 위해 만들어진 계산기입니다.</h4>
-  <h4> 본 계산기는 주택임대차보호법(2023. 7. 19. 시행) 및 수도권정비계획법(2023. 7. 10. 시행)을 참고하여 제작하였으나, 실제 배당금과 배당순서가 다를 수 있습니다. </h4>
-  <h4> 본 계산기는 법률적인 용도로 사용될 수 없으며, 동시에 어떠한 법적 책임을 지지 않습니다.<h4>
-  <h4> 만든이 : 카카오톡 전세피해 상담방(https://open.kakao.com/o/gUulab7d) 그저갓
-  <h4> 문의사항 : yas100g@naver.com </h4>
-  <h4> 최종수정 2025-04-27 </h4>
-
 <!-- 부동산소재지구분 -->
 <h3>부동산소재지구분</h3>
 <select id="locationSelect" onchange="updateSmallTenantInfo()"></select>
@@ -42,18 +36,14 @@
 
 <!-- 세입자 -->
 <h3>세입자에 관한 내용</h3>
-    <h4> 모든 세대에 대한 전입신고일자, 확정일자, 점유일자, 보증금을 적으십시오. 정보가 정확하지 못하면 배당순위 및 배당금이 달라질 수 있습니다. </h4>
-    <h4> 전입세대열람내역서와 확정일자 부여현황을 참고하여 작성하셔야 합니다. </h4>
-    <h4> 만약 다가구건물에 전세계약을 진행하려고 할 때, 공인중개사 또는 임대인이 전입세대열람내역서를 제공하지 않으면 즉시 계약진행을 멈추셔야합니다. </h4>
 <table id="tenantTable"><thead><tr><th>호실명</th><th>임차인명</th><th>확정일자</th><th>전입신고일자</th><th>점유일자</th><th>보증금</th></tr></thead><tbody></tbody></table>
 <button onclick="addRow('tenantTable', ['text','text','date','date','date','currency-deposit'])">세입자 행 추가</button>
 <button onclick="removeRow('tenantTable')">세입자 행 삭제</button>
 
-<!-- 예상낙찰금액 -->   
+<!-- 예상낙찰금액 -->
 <h3>예상낙찰금액</h3>
-    <h4> 예상낙찰금액은 경매시장에서 평가되는 주택가치이며, 공인중개사가 평가한 가격과는 무관합니다. </h4>
 <input type="text" id="auctionPrice" placeholder="예: 600,000,000" oninput="this.value=formatNumberInput(this.value)">
-    
+
 <!-- 계산하기 버튼 -->
 <br><br><button onclick="calculate()">계산하기</button>
 
@@ -68,6 +58,14 @@
 <div id="resultSection" style="display:none;">
   <h3>최우선변제금을 변제한 뒤 채권순위에 따른 배당결과</h3>
   <div id="resultArea"></div>
+</div>
+
+<!-- 배당결과 요약 (초기 숨김) -->
+<div id="summarySection" style="display:none; margin-top:20px;">
+  <h3>배당결과 요약</h3>
+  <table id="summaryTable"><thead><tr>
+    <th>채권자명</th><th>채권효력발생일</th><th>총채권금액</th><th>최우선변제금</th><th>최우선변제금 외 채권잔액</th><th>배당금액</th><th>경매 후 손실금액</th>
+  </tr></thead><tbody></tbody></table>
 </div>
 
 <script src="최우선변제금기준표_11차개정.js"></script>
@@ -95,15 +93,16 @@ function removeRow(tableId){
 }
 
 function parseNumber(str){return Number(str.replace(/,/g,''))||0;}
-function formatNumberInput(val){val=val.replace(/\D/g,'');return val?Number(val).toLocaleString():' ';}
+function formatNumberInput(val){val=val.replace(/\D/g,'');return val?Number(val).toLocaleString():' '}
 
 function calculate(){
-  // 섹션 보이기
+  // 보이기
   document.getElementById('prioritySection').style.display='block';
   document.getElementById('resultSection').style.display='block';
+  document.getElementById('summarySection').style.display='block';
 
   const loc=document.getElementById('locationSelect').value;
-  // 우선변제권 한도 및 상한 조회
+  // 우선변제 한도/상한
   const mortRows=[...document.querySelectorAll('#mortgageTable tbody tr')];
   let threshold=0, capPriority=0;
   if(mortRows.length){
@@ -113,59 +112,85 @@ function calculate(){
     const m=applicable.find(i=>i.지역===loc)||applicable.find(i=>i.지역==='기타지역');
     if(m){ threshold=m.보증금상한; capPriority=m.최우선; }
   }
-  // 세입자 수집 및 효력발생일, 소액판별
+  // 세입자 수집
   const tenants=[];
   document.querySelectorAll('#tenantTable tbody tr').forEach(r=>{
     const h=r.cells[0].querySelector('input').value;
     const n=r.cells[1].querySelector('input').value;
-    const dateStrs=[2,3,4].map(i=>r.cells[i].querySelector('input').value).filter(d=>d);
-    const maxDate=new Date(Math.max(...dateStrs.map(d=>new Date(d))));
-    const eff=new Date(maxDate.setDate(maxDate.getDate()+1));
-    const effStr=eff.toISOString().split('T')[0];
+    const dates=[2,3,4].map(i=>r.cells[i].querySelector('input').value).filter(d=>d);
+    const maxD=new Date(Math.max(...dates.map(d=>new Date(d))));
+    maxD.setDate(maxD.getDate()+1);
+    const eff=maxD.toISOString().split('T')[0];
     const dep=parseNumber(r.cells[5].querySelector('input').value);
     const isSmall=threshold>0 && dep<=threshold;
-    tenants.push({ name:`${n}(${h})`, deposit:dep, small:isSmall, date:effStr });
+    const paid=isSmall?0:0; // 할당 전 0
+    tenants.push({ name:`${n}(${h})`, orig:dep, priorityPaid:0, claim:dep, date:eff, small:isSmall });
   });
   // 최우선변제금 계산
   const auction=parseNumber(document.getElementById('auctionPrice').value);
   const half=auction/2;
   const smallCount=tenants.filter(t=>t.small).length;
   const perShare= smallCount? Math.min(capPriority, half/smallCount) : 0;
-  const totalPriorityPaid=perShare*smallCount;
-  // 최우선변제금 결과 표
+  const totalPriority=perShare*smallCount;
+  // tenants priorityPaid & claim
+  tenants.forEach(t=>{
+    if(t.small){ t.priorityPaid=Math.min(perShare,t.orig); t.claim=t.orig - t.priorityPaid; }
+  });
+  const priorityRemain=auction - totalPriority;
+  // 우선변제 결과
   const prBody=document.querySelector('#priorityResultTable tbody'); prBody.innerHTML='';
   tenants.forEach(t=>{
     const tr=document.createElement('tr');
-    const c1=document.createElement('td'); c1.textContent=t.name;
-    const c2=document.createElement('td'); c2.innerHTML=t.small?'<span class="small-yes">대상</span>':'<span class="small-no">비대상</span>';
-    const c3=document.createElement('td');
-    const paid=t.small? Math.min(perShare, t.deposit):0;
-    c3.textContent=paid?paid.toLocaleString()+'원':'';
-    tr.append(c1,c2,c3); prBody.append(tr);
+    tr.innerHTML=`<td>${t.name}</td><td>${t.small?'<span class="small-yes">대상</span>':'<span class="small-no">비대상</span>'}</td><td>${t.priorityPaid? t.priorityPaid.toLocaleString()+'원':''}</td>`;
+    prBody.append(tr);
   });
-  // 우선변제 후 잔액 출력
-  const remainPriority=auction - totalPriorityPaid;
-  document.getElementById('priorityRemain').textContent=`최우선변제금 배당 후 잔액: ${remainPriority.toLocaleString()}원`;
-  // 일반배당 풀 계산
-  let remain=remainPriority;
+  document.getElementById('priorityRemain').textContent=`최우선변제금 배당 후 잔액: ${priorityRemain.toLocaleString()}원`;
+
+  // 일반배당
+  let remain=priorityRemain;
   const creditors=[];
-  ['mortgageTable','seizureTable'].forEach(id=> document.querySelectorAll(`#${id} tbody tr`).forEach(r=>{
-    const inputs=r.querySelectorAll('input');
-    creditors.push({ name:inputs[0].value, amount:parseNumber(inputs[2].value), date:inputs[1].value });
-  }));
+  // 근저당 & 가압류
+  ['mortgageTable','seizureTable'].forEach(id=>{
+    document.querySelectorAll(`#${id} tbody tr`).forEach(r=>{
+      const name=r.cells[0].querySelector('input').value;
+      const date=r.cells[1].querySelector('input').value;
+      const amt=parseNumber(r.cells[2].querySelector('input').value);
+      creditors.push({ name, date, orig:amt, priorityPaid:0, claim:amt, distributed:0 });
+    });
+  });
+  // tenants as creditors
   tenants.forEach(t=>{
-    const paid=t.small? Math.min(perShare, t.deposit):0;
-    const claim=Math.max(t.deposit - paid, 0);
-    creditors.push({ name:t.name, amount:claim, date:t.date });
+    creditors.push({ name:t.name, date:t.date, orig:t.orig, priorityPaid:t.priorityPaid, claim:t.claim, distributed:0 });
   });
-  creditors.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  let html='<table><tr><th>채권순위</th><th>권리자명</th><th>최우선변제금 외 채권금액</th><th>효력발생일</th><th>배당금액</th><th>배당후잔액</th></tr>';
+  // sort
+  creditors.sort((a,b)=>new Date(a.date) - new Date(b.date));
+  // result table
+  let rsHtml='<table><tr><th>채권순위</th><th>권리자명</th><th>최우선변제금 변제 후 채권잔액</th><th>효력발생일</th><th>배당금액</th><th>배당후잔액</th></tr>';
   creditors.forEach((c,i)=>{
-    const dist=Math.min(remain,c.amount); remain-=dist;
-    html+=`<tr><td>${i+1}</td><td>${c.name}</td><td>${c.amount.toLocaleString()}원</td><td>${c.date}</td><td>${dist.toLocaleString()}원</td><td>${remain.toLocaleString()}원</td></tr>`;
+    const dist=Math.min(remain,c.claim);
+    c.distributed=dist;
+    remain-=dist;
+    rsHtml+=`<tr><td>${i+1}</td><td>${c.name}</td><td>${c.claim.toLocaleString()}원</td><td>${c.date}</td><td>${dist.toLocaleString()}원</td><td>${remain.toLocaleString()}원</td></tr>`;
   });
-  html+='</table>';
-  document.getElementById('resultArea').innerHTML=html;
+  rsHtml+='</table>';
+  document.getElementById('resultArea').innerHTML=rsHtml;
+
+  // summary table
+  const sumBody=document.querySelector('#summaryTable tbody'); sumBody.innerHTML='';
+  creditors.forEach(c=>{
+    const loss=c.orig - c.distributed;
+    const lossHtml=loss<0? `<span class="loss-negative">${loss.toLocaleString()}원</span>` : `${loss.toLocaleString()}원`;
+    const row=`<tr>
+      <td>${c.name}</td>
+      <td>${c.date}</td>
+      <td>${c.orig.toLocaleString()}원</td>
+      <td>${c.priorityPaid?c.priorityPaid.toLocaleString()+'원':'0원'}</td>
+      <td>${(c.orig - c.priorityPaid).toLocaleString()}원</td>
+      <td>${c.distributed.toLocaleString()}원</td>
+      <td>${lossHtml}</td>
+    </tr>`;
+    sumBody.insertAdjacentHTML('beforeend',row);
+  });
 }
 
 function updateSmallTenantInfo(){
