@@ -35,7 +35,7 @@
 <h2>배당순위 및 배당금 계산기</h2>
 <div class="info-box">
 <h4> 본 배당순위 및 배당금액 계산기는 다가구건축물 등에 있어서 근저당, 선순위 세입자 등 복잡한 권리상황에서 경매가 발생하였다고 가정하였을 때, 나의 임차보증금의 안전할 수 있는지를 시뮬레이션하기 위해 만들어진 계산기입니다.</h4>
-<h4> 본 계산기는 주택임대차보호법(2023. 7. 19. 시행) 및 수도권정비계획법(2023. 7. 10. 시행)을 참고하여 제작하였으나, 미납국세, 임금채권 등 다양한 변수에 따라 실제 배당금과 배당순서가 다를 수 있습니다. </h4>
+<h4> 본 계산기는 주택임대차보호법(2023. 7. 19. 시행) 및 수도권정비계획법(2023. 7. 10. 시행)을 참고하여 제작하였으나 부동산경매집해비용, 미납국세, 임금채권 등 다양한 변수에 따라 실제 배당금과 배당순서가 다를 수 있습니다. </h4>
 <h4> 본 계산기는 법률적인 용도로 사용될 수 없으며, 동시에 어떠한 법적 책임을 지지 않습니다.<h4>
 <h4> 만든이 : 카카오톡 전세피해 상담방(https://open.kakao.com/o/gUulab7d) 그저갓
 <h4> 문의사항 : yas100g@naver.com </h4>
@@ -64,13 +64,17 @@
 <table id="tenantTable"><thead><tr><th>호실명</th><th>임차인명</th><th>확정일자</th><th>전입신고일자</th><th>점유일자</th><th>보증금</th></tr></thead><tbody></tbody></table>
 <button onclick="addRow('tenantTable', ['text','text','date','date','date','currency-deposit'])">세입자 행 추가</button>
 <button onclick="removeRow('tenantTable')">세입자 행 삭제</button>
+<div class="info-box">
 <h4> 모든 세대에 대한 전입신고일자, 확정일자, 점유일자, 보증금을 적으십시오. 정보가 정확하지 못하면 배당순위 및 배당금이 달라질 수 있습니다. </h4>
 <h4> 주민센터에서 발급하는 전입세대열람내역서와 확정일자 부여현황을 참고하여 작성하셔야 합니다. </h4>
 <h4> 만약 다가구건물에 전세계약을 진행하려고 할 때, 공인중개사 또는 임대인이 주민센터에서 발급한 확정일자부여현황과 전입세대열람내역서를 제공하지 않으면 즉시 계약진행을 멈추셔야합니다. </h4>
+</div><div id="exportArea">
 <!-- 예상낙찰금액 -->
 <h3>예상낙찰금액</h3>
 <input type="text" id="auctionPrice" placeholder="예: 600,000,000" oninput="this.value=formatNumberInput(this.value)">
-<h4> 예상낙찰금액은 경매시장에서 평가되는 주택가치이며, 공인중개사가 평가한 가격과는 무관합니다. </h4>
+<div class="info-box">
+<h4> 예상낙찰금액은 경매시장에서 평가되는 주택가치이며, 공인중개사 또는 임대인이 평가한 주택가치와는 무관합니다. </h4>
+</div><div id="exportArea">
 <!-- 계산하기 버튼 -->
   <br><br><button id="calculateBtn" onclick="calculate()">계산하기</button>
 
