@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>세입자보증금 계산기</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    table, th, td {
+      border: 1px solid gray;
+      border-collapse: collapse;
+      padding: 5px;
+      text-align: center;
+    }
+    th { background-color: #f0f0f0; }
+    td input, td select { width: 100%; box-sizing: border-box; text-align: right; }
+    button { margin: 5px; }
+    .blue { color: blue; font-weight: bold; }
+    .red { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h2>세입자보증금 계산기</h2>
+
+<h3>부동산소재지구분</h3>
+<select id="locationSelect"></select>
+
+<div id="smallTenantInfo" style="margin: 10px 0; font-weight: bold;"></div>
+
+<h3>근저당에 관한 내용</h3>
+<table id="mortgageTable">
+  <thead>
+    <tr>
+      <th>근저당권자명</th>
+      <th>근저당설정일자</th>
+      <th>근저당금액</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<button onclick="addRow('mortgageTable', ['text', 'date', 'currency-mortgage'])">근저당 행 추가</button>
+<button onclick="removeRow('mortgageTable')">근저당 행 삭제</button>
+
+<h3>가압류에 관한 내용</h3>
+<table id="seizureTable">
+  <thead>
+    <tr>
+      <th>가압류권자명</th>
+      <th>가압류접수일자</th>
+      <th>가압류금액</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<button onclick="addRow('seizureTable', ['text', 'date', 'currency-seizure'])">가압류 행 추가</button>
+<button onclick="removeRow('seizureTable')">가압류 행 삭제</button>
+
+<h3>세입자에 관한 내용</h3>
+<table id="tenantTable">
+  <thead>
+    <tr>
+      <th>호실명</th>
+      <th>임차인명</th>
+      <th>확정일자</th>
+      <th>전입신고일자</th>
+      <th>점유일자</th>
+      <th>보증금</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<button onclick="addRow('tenantTable', ['text', 'text', 'date', 'date', 'date', 'currency-deposit'])">세입자 행 추가</button>
+<button onclick="removeRow('tenantTable')">세입자 행 삭제</button>
+
+<h3>예상낙찰금액</h3>
+<input type="text" id="auctionPrice" placeholder="예: 600,000,000" oninput="this.value = formatNumberInput(this.value)">
+
+<br><br>
+<button onclick="calculate()">계산하기</button>
+
+<h3>최우선변제금 배당결과</h3>
+<div id="priorityCompensationArea"></div>
+
+<h3>배당결과</h3>
+<div id="resultArea"></div>
+
+<script src="최우선변제금기준표_11차개정.js"></script>
+<script>
+function addRow(tableId, types) {
+  const table = document.getElementById(tableId).querySelector('tbody');
+  const newRow = table.insertRow();
+  types.forEach(type => {
+    const cell = newRow.insertCell();
+    const input = document.createElement('input');
+    if (type.startsWith('currency')) {
+      input.type = 'text';
+      input.inputMode = 'numeric';
+      input.placeholder = type.includes('mortgage') ? '예: 140,000,000' : type.includes('seizure') ? '예: 5,000,000' : '예: 6,000,000';
+      input.addEventListener('input', () => input.value = formatNumberInput(input.value));
+    } else {
+      input.type = type;
+    }
+    cell.appendChild(input);
+  });
+}
+
+function removeRow(tableId) {
+  const table = document.getElementById(tableId).querySelector('tbody');
+  if (table.rows.length > 0) table.deleteRow(-1);
+}
+
+function parseNumber(str) {
+  return Number(str.replace(/,/g, '')) || 0;
+}
+
+function formatNumberInput(value) {
+  return value.replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function calculate() {
+  const auctionPrice = parseNumber(document.getElementById('auctionPrice').value);
+  const location = document.getElementById('locationSelect').value;
+  const mortgageDateInput = document.querySelector('#mortgageTable tbody input[type="date"]');
+  const mortgageDate = mortgageDateInput ? mortgageDateInput.value : '';
+
+  if (!location) {
+    alert('부동산소재지구분을 선택해 주세요.');
+    return;
+  }
+
+  let 기준 = null;
+  if (location && mortgageDate) {
+    const 기준들 = 기준표.filter(item => {
+      const 시작 = new Date(item.시작);
+      const 종료 = item.종료 ? new Date(item.종료) : new Date('9999-12-31');
+      const 설정일 = new Date(mortgageDate);
+      return 시작 <= 설정일 && 설정일 <= 종료;
+    });
+    기준 = 기준들.find(item => item.지역 === location) || 기준들.find(item => item.지역 === '기타지역');
+  }
+
+  const 소액임차인기준 = 기준 ? parseNumber(기준.보증금상한) : null;
+
+  const tenantRows = document.querySelectorAll('#tenantTable tbody tr');
+  let priorityHtml = "<table><tr><th>임차인명(호실명)</th><th>소액임차인 여부</th></tr>";
+
+  tenantRows.forEach(row => {
+    const cells = row.querySelectorAll('input');
+    const tenantName = `${cells[1].value}(${cells[0].value})`;
+    const deposit = parseNumber(cells[5].value);
+    const status = 소액임차인기준 !== null ? (deposit <= 소액임차인기준 ? '<span class="blue">대상</span>' : '<span class="red">비대상</span>') : '-';
+    priorityHtml += `<tr><td>${tenantName}</td><td>${status}</td></tr>`;
+  });
+
+  priorityHtml += "</table>";
+  document.getElementById('priorityCompensationArea').innerHTML = priorityHtml;
+
+  let creditors = [];
+
+  document.querySelectorAll('#mortgageTable tbody tr').forEach(row => {
+    const cells = row.querySelectorAll('input');
+    if (cells[0].value && parseNumber(cells[2].value) > 0) {
+      creditors.push({ name: cells[0].value, amount: parseNumber(cells[2].value), date: cells[1].value });
+    }
+  });
+
+  document.querySelectorAll('#seizureTable tbody tr').forEach(row => {
+    const cells = row.querySelectorAll('input');
+    if (cells[0].value && parseNumber(cells[2].value) > 0) {
+      creditors.push({ name: cells[0].value, amount: parseNumber(cells[2].value), date: cells[1].value });
+    }
+  });
+
+  tenantRows.forEach(row => {
+    const cells = row.querySelectorAll('input');
+    const dates = [cells[2].value, cells[3].value, cells[4].value].filter(Boolean);
+    if (dates.length > 0) {
+      dates.sort();
+      let latestDate = new Date(dates[dates.length - 1]);
+      latestDate.setDate(latestDate.getDate() + 1);
+      creditors.push({ name: `${cells[1].value}(${cells[0].value})`, amount: parseNumber(cells[5].value), date: latestDate.toISOString().split('T')[0] });
+    }
+  });
+
+  creditors = creditors.filter(c => c.name && c.amount > 0);
+
+  creditors.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  let remain = auctionPrice;
+  let resultHtml = "<table><tr><th>권리자명</th><th>금액</th><th>효력발생일</th><th>배당금액</th><th>배당후잔액</th></tr>";
+
+  creditors.forEach(c => {
+    const distribute = Math.min(remain, c.amount);
+    remain -= distribute;
+    resultHtml += `<tr><td>${c.name}</td><td>${c.amount.toLocaleString()}원</td><td>${c.date}</td><td>${distribute.toLocaleString()}원</td><td>${remain.toLocaleString()}원</td></tr>`;
+  });
+
+  resultHtml += "</table>";
+  document.getElementById('resultArea').innerHTML = resultHtml;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const select = document.getElementById('locationSelect');
+  if (typeof 기준표 !== 'undefined') {
+    const 지역목록 = [...new Set(기준표.map(item => item.지역))].sort();
+    지역목록.forEach(area => {
+      const option = document.createElement('option');
+      option.value = area;
+      option.text = area;
+      select.appendChild(option);
+    });
+  }
+});
+</script>
+
+</body>
+</html>
