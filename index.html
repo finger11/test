@@ -156,7 +156,7 @@ function calculate(){
     creditors.push({ name:t.name, amount:claim, date:t.date });
   });
   creditors.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  let html='<table><tr><th>채권순위</th><th>권리자명</th><th>최우선변제금 변제 후 채권잔액</th><th>효력발생일</th><th>배당금액</th><th>배당후잔액</th></tr>';
+  let html='<table><tr><th>채권순위</th><th>권리자명</th><th>최우선변제금 외 채권금액</th><th>효력발생일</th><th>배당금액</th><th>배당후잔액</th></tr>';
   creditors.forEach((c,i)=>{
     const dist=Math.min(remain,c.amount); remain-=dist;
     html+=`<tr><td>${i+1}</td><td>${c.name}</td><td>${c.amount.toLocaleString()}원</td><td>${c.date}</td><td>${dist.toLocaleString()}원</td><td>${remain.toLocaleString()}원</td></tr>`;
