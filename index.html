@@ -55,7 +55,6 @@
 <h4> 예상낙찰금액은 경매시장에서 평가되는 주택가치이며, 공인중개사가 평가한 가격과는 무관합니다. </h4>
   <!-- 계산하기 버튼 -->
   <br><br><button onclick="calculate()">계산하기</button>
-  <button onclick="exportCSV()">배당결과 요약표 CSV 다운로드</button>
 
   <!-- 최우선변제금 배당결과 표 (초기 숨김) -->
   <div id="prioritySection" style="display:none;">
@@ -76,6 +75,11 @@
     <table id="summaryTable"><thead><tr>
       <th>채권자명</th><th>채권효력발생일</th><th>총채권금액</th><th>최우선변제금</th><th>최우선변제금 외 채권잔액</th><th>배당금액</th><th>경매 후 손실금액</th>
     </tr></thead><tbody></tbody></table>
+  </div>
+
+  <!-- CSV 다운로드 버튼 (초기 숨김) -->
+  <div id="csvSection" style="display:none; margin-top:10px;">
+    <button onclick="exportCSV()">배당결과 요약표 CSV 다운로드</button>
   </div>
 </div>
 
@@ -122,13 +126,13 @@ function removeRow(tableId){
   if(tableId==='mortgageTable') updateSmallTenantInfo();
 }
 
-function parseNumber(str){return Number(str.replace(/,/g,''))||0;}
-function formatNumberInput(val){val=val.replace(/\D/g,'');return val?Number(val).toLocaleString():' '}
+function parseNumber(str){return Number(str.replace(/,/g,''))||0;} function formatNumberInput(val){val=val.replace(/\D/g,'');return val?Number(val).toLocaleString():'';}
 
 function calculate(){
   document.getElementById('prioritySection').style.display='block';
   document.getElementById('resultSection').style.display='block';
   document.getElementById('summarySection').style.display='block';
+  document.getElementById('csvSection').style.display='block';
 
   const loc=document.getElementById('locationSelect').value;
   const mortRows=[...document.querySelectorAll('#mortgageTable tbody tr')];
@@ -146,8 +150,7 @@ function calculate(){
     const h=r.cells[0].querySelector('input').value;
     const n=r.cells[1].querySelector('input').value;
     const dates=[2,3,4].map(i=>r.cells[i].querySelector('input').value).filter(d=>d);
-    const maxD=new Date(Math.max(...dates.map(d=>new Date(d))));
-    maxD.setDate(maxD.getDate()+1);
+    const maxD=new Date(Math.max(...dates.map(d=>new Date(d)))); maxD.setDate(maxD.getDate()+1);
     const eff=maxD.toISOString().split('T')[0];
     const dep=parseNumber(r.cells[5].querySelector('input').value);
     const isSmall=threshold>0 && dep<=threshold;
@@ -159,9 +162,7 @@ function calculate(){
   const perShare= smallCount? Math.min(capPriority, half/smallCount) : 0;
   const totalPriority=perShare*smallCount;
 
-  tenants.forEach(t=>{
-    if(t.small){ t.priorityPaid=Math.min(perShare,t.orig); t.claim=t.orig - t.priorityPaid; }
-  });
+  tenants.forEach(t=>{ if(t.small){ t.priorityPaid=Math.min(perShare,t.orig); t.claim=t.orig - t.priorityPaid; }});
   const priorityRemain=auction - totalPriority;
 
   const prBody=document.querySelector('#priorityResultTable tbody'); prBody.innerHTML='';
@@ -196,15 +197,7 @@ function calculate(){
     const totalDistributed = (c.priorityPaid || 0) + (c.distributed || 0);
     const loss = totalDistributed - c.orig;
     const lossHtml = loss < 0 ? `<span class="loss-negative">${loss.toLocaleString()}원</span>` : `${loss.toLocaleString()}원`;
-    const row=`<tr>
-      <td>${c.name}</td>
-      <td>${c.date}</td>
-      <td>${c.orig.toLocaleString()}원</td>
-      <td>${c.priorityPaid?c.priorityPaid.toLocaleString()+'원':'0원'}</td>
-      <td>${(c.orig - (c.priorityPaid || 0)).toLocaleString()}원</td>
-      <td>${totalDistributed.toLocaleString()}원</td>
-      <td>${lossHtml}</td>
-    </tr>`;
+    const row=`<tr><td>${c.name}</td><td>${c.date}</td><td>${c.orig.toLocaleString()}원</td><td>${c.priorityPaid?c.priorityPaid.toLocaleString()+'원':'0원'}</td><td>${(c.orig - (c.priorityPaid || 0)).toLocaleString()}원</td><td>${totalDistributed.toLocaleString()}원</td><td>${lossHtml}</td></tr>`;
     sumBody.insertAdjacentHTML('beforeend',row);
   });
 }
