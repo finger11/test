@@ -47,13 +47,18 @@
 <!-- 계산하기 버튼 -->
 <br><br><button onclick="calculate()">계산하기</button>
 
-<!-- 최우선변제금 배당결과 표 -->
-<h3>최우선변제금 배당결과</h3>
-<table id="priorityResultTable"><thead><tr><th>임차인명</th><th>소액임차인여부</th><th>최우선변제금</th></tr></thead><tbody></tbody></table>
-<div id="priorityRemain" style="margin:10px 0; font-weight:bold;"></div>
+<!-- 최우선변제금 배당결과 표 (초기 숨김) -->
+<div id="prioritySection" style="display:none;">
+  <h3>최우선변제금 배당결과</h3>
+  <table id="priorityResultTable"><thead><tr><th>임차인명</th><th>소액임차인여부</th><th>최우선변제금</th></tr></thead><tbody></tbody></table>
+  <div id="priorityRemain" style="margin:10px 0; font-weight:bold;"></div>
+</div>
 
-<!-- 결과출력 -->
-<h3>배당결과</h3><div id="resultArea"></div>
+<!-- 결과출력 (초기 숨김) -->
+<div id="resultSection" style="display:none;">
+  <h3>배당결과</h3>
+  <div id="resultArea"></div>
+</div>
 
 <script src="최우선변제금기준표_11차개정.js"></script>
 <script>
@@ -83,6 +88,10 @@ function parseNumber(str){return Number(str.replace(/,/g,''))||0;}
 function formatNumberInput(val){val=val.replace(/\D/g,'');return val?Number(val).toLocaleString():' ';}
 
 function calculate(){
+  // 섹션 보이기
+  document.getElementById('prioritySection').style.display='block';
+  document.getElementById('resultSection').style.display='block';
+
   const loc=document.getElementById('locationSelect').value;
   // 우선변제권 한도 및 상한 조회
   const mortRows=[...document.querySelectorAll('#mortgageTable tbody tr')];
@@ -100,7 +109,6 @@ function calculate(){
     const h=r.cells[0].querySelector('input').value;
     const n=r.cells[1].querySelector('input').value;
     const dateStrs=[2,3,4].map(i=>r.cells[i].querySelector('input').value).filter(d=>d);
-    // 효력발생일: max date + 1일
     const maxDate=new Date(Math.max(...dateStrs.map(d=>new Date(d))));
     const eff=new Date(maxDate.setDate(maxDate.getDate()+1));
     const effStr=eff.toISOString().split('T')[0];
@@ -130,22 +138,18 @@ function calculate(){
   document.getElementById('priorityRemain').textContent=`최우선변제금 배당 후 잔액: ${remainPriority.toLocaleString()}원`;
   // 일반배당 풀 계산
   let remain=remainPriority;
-  // 권리자 목록 준비
   const creditors=[];
   ['mortgageTable','seizureTable'].forEach(id=> document.querySelectorAll(`#${id} tbody tr`).forEach(r=>{
     const inputs=r.querySelectorAll('input');
     creditors.push({ name:inputs[0].value, amount:parseNumber(inputs[2].value), date:inputs[1].value });
   }));
-  // 세입자(일반채권) 배당
   tenants.forEach(t=>{
     const paid=t.small? Math.min(perShare, t.deposit):0;
     const claim=Math.max(t.deposit - paid, 0);
     creditors.push({ name:t.name, amount:claim, date:t.date });
   });
-  // 날짜순 정렬
   creditors.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  // 배당결과 테이블 생성
-  let html='<table><tr><th>채권순위</th><th>권리자명</th><th>청구금액</th><th>효력발생일</th><th>배당금액</th><th>배당후잔액</th></tr>';
+  let html='<table><tr><th>채권순위</th><th>권리자명</th><th>최우선변제금 변제 후 채권잔액</th><th>효력발생일</th><th>배당금액</th><th>배당후잔액</th></tr>';
   creditors.forEach((c,i)=>{
     const dist=Math.min(remain,c.amount); remain-=dist;
     html+=`<tr><td>${i+1}</td><td>${c.name}</td><td>${c.amount.toLocaleString()}원</td><td>${c.date}</td><td>${dist.toLocaleString()}원</td><td>${remain.toLocaleString()}원</td></tr>`;
@@ -161,7 +165,7 @@ function updateSmallTenantInfo(){
   if(!loc||!date){ info.textContent=''; return;} 
   const applicable=기준표.filter(i=>{const s=new Date(i.시작),e=new Date(i.종료||'9999-12-31'),c=new Date(date);return s<=c&&c<=e;});
   const m=applicable.find(i=>i.지역===loc)||applicable.find(i=>i.지역==='기타지역');
-  info.textContent=m?`${loc} ${date} 기준 소액임차인 한도: ${m.보증금상한.toLocaleString()}원`: '기준 없음';
+  info.textContent=m?`${loc} ${date} 기준 소액임차인 한도: ${m.보증금상한.toLocaleString()}원`:'기준 없음';
 }
 window.onload=function(){
   const sel=document.getElementById('locationSelect');
